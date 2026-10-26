@@ -7,7 +7,7 @@ import org.openjdk.jmh.annotations.*;
 import javax.net.ssl.SSLException;
 import java.util.concurrent.TimeUnit;
 
-/** Full TLS 1.2 handshake (engine creation included), no session resumption. */
+/** Full TLS 1.3 handshake (engine creation included), no session resumption. */
 @State(Scope.Thread)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
