@@ -17,12 +17,13 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * In-memory TLS 1.2 client/server pair. Every hop of network bytes between peers
- * sleeps {@code latencyMs} to simulate wire latency.
+ * In-memory TLS 1.3 client/server pair. Every hop of network bytes between peers sleeps {@code latencyMs}
+ * while the client is still handshaking. Once the client may send application data, the remaining
+ * messages (client Finished, NewSessionTicket) go without latency, as they overlap with app data.
  */
 final class Link {
-    static final String PROTOCOL = "TLSv1.2";
-    static final List<String> CIPHERS = Collections.singletonList("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256");
+    static final String PROTOCOL = "TLSv1.3";
+    static final List<String> CIPHERS = Collections.singletonList("TLS_AES_128_GCM_SHA256");
     private static final int BUF = 1 << 17;
     private static final ByteBuffer EMPTY = ByteBuffer.allocate(0);
 
@@ -99,7 +100,9 @@ final class Link {
             switch (hs) {
                 case NOT_HANDSHAKING:
                 case FINISHED:
-                    return;
+                    // post-handshake messages, e.g. NewSessionTicket
+                    if (netIn.position() == 0 || (r = unwrap(e, netIn, app)) == null) return;
+                    break;
                 case NEED_TASK:
                     Runnable t;
                     while ((t = e.getDelegatedTask()) != null) t.run();
@@ -108,17 +111,23 @@ final class Link {
                     r = e.wrap(EMPTY, netOut);
                     break;
                 default: // NEED_UNWRAP, NEED_UNWRAP_AGAIN (9+)
-                    netIn.flip();
-                    try {
-                        r = e.unwrap(netIn, app);
-                    } finally {
-                        netIn.compact();
-                    }
-                    if (r.getStatus() == SSLEngineResult.Status.BUFFER_UNDERFLOW) return;
+                    if ((r = unwrap(e, netIn, app)) == null) return;
             }
             check(r);
             if (r.bytesConsumed() == 0 && r.bytesProduced() == 0 && e.getHandshakeStatus() == hs) return;
         }
+    }
+
+    /** Returns null on underflow (needs more bytes from peer). */
+    private static SSLEngineResult unwrap(SSLEngine e, ByteBuffer netIn, ByteBuffer app) throws SSLException {
+        netIn.flip();
+        SSLEngineResult r;
+        try {
+            r = e.unwrap(netIn, app);
+        } finally {
+            netIn.compact();
+        }
+        return r.getStatus() == SSLEngineResult.Status.BUFFER_UNDERFLOW ? null : r;
     }
 
     private static void check(SSLEngineResult r) {
@@ -127,7 +136,7 @@ final class Link {
 
     private void deliver(ByteBuffer from, ByteBuffer to) {
         if (from.position() == 0) return;
-        sleep(latencyMs);
+        if (!idle(client)) sleep(latencyMs);
         from.flip();
         to.put(from);
         from.clear();

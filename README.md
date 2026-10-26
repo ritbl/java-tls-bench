@@ -1,11 +1,12 @@
 # tls-bench
 
-JMH benchmark comparing TLS 1.2 in Java: the JDK's built-in TLS (SunJSSE) vs netty-tcnative (BoringSSL), on Java 8, 11
+JMH benchmark comparing TLS 1.3 in Java: the JDK's built-in TLS (SunJSSE) vs netty-tcnative (BoringSSL), on Java 8, 11
 and 25.
 
-- Cipher: `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256`, P-256 certificate
+- Cipher: `TLS_AES_128_GCM_SHA256`, P-256 certificate (BoringSSL ignores the TLS 1.3 cipher setting but picks
+  AES-128-GCM by default; the benchmark checks the negotiated cipher)
 - Client and server `SSLEngine`s talk in memory; each network hop sleeps `latencyMs` (default 100 ms) to simulate
-  latency
+  latency, until the client is able to send application data
 
 ## Benchmarks
 
@@ -17,16 +18,6 @@ Params:
 
 - `impl`: `jdk` (SunJSSE) or `tcnative` (BoringSSL)
 - `latencyMs`: simulated latency per hop
-
-
-TLS handshake:
-
-| # | Direction       | Messages                                                     |
-|---|-----------------|--------------------------------------------------------------|
-| 1 | client → server | ClientHello                                                  |
-| 2 | server → client | ServerHello, Certificate, ServerKeyExchange, ServerHelloDone |
-| 3 | client → server | ClientKeyExchange, ChangeCipherSpec, Finished                |
-| 4 | server → client | ChangeCipherSpec, Finished                                   |
 
 ## Requirements
 
@@ -79,7 +70,7 @@ Note: with 100 ms latency, the sleep dominates the result; use `latencyMs=0` to 
 Full handshake (new session, no resumption), latency 0 ms per hop  [ms/op]
                      JSSE        tcnative   comparison
   ----------------------------------------------------------------
-  Java 8      2.31 ± 0.28   0.133 ± 0.009   tcnative 17.35x faster
-  Java 11     1.30 ± 0.48   0.133 ± 0.012   tcnative 9.74x faster
-  Java 25   0.705 ± 0.048   0.129 ± 0.013   tcnative 5.46x faster
+  Java 8      2.39 ± 0.31   0.150 ± 0.014   tcnative 15.91x faster
+  Java 11     1.38 ± 0.50   0.152 ± 0.048   tcnative 9.09x faster
+  Java 25   0.804 ± 0.223   0.145 ± 0.005   tcnative 5.53x faster
 ```

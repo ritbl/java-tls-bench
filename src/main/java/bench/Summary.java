@@ -63,10 +63,10 @@ public final class Summary {
         sorted.sort(Comparator.comparingInt((Case c) -> c.order)
                 .thenComparingLong(c -> c.latency));
 
-        System.out.println("TLS 1.2 benchmark: JDK JSSE vs netty-tcnative (BoringSSL)");
-        System.out.println("Cipher: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, P-256 certificate, in-memory transport");
+        System.out.println("TLS 1.3 handshake benchmark: JDK JSSE vs netty-tcnative (BoringSSL)");
+        System.out.println("Cipher: TLS_AES_128_GCM_SHA256, P-256 certificate, in-memory transport");
         System.out.println("Values are average time per operation (lower is better); \"±\" is the 99.9% confidence");
-        System.out.println("interval, shown only when 2+ measurement iterations were run.");
+        System.out.println("interval, shown only when 3+ measurement iterations were run.");
         System.out.println("\"within noise\" = confidence intervals overlap, no real difference.");
 
         for (Case c : sorted) {
